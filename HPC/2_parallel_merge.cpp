@@ -65,5 +65,6 @@ int main()
     start = omp_get_wtime();
     parallel_merge_sort(arr);
     end = omp_get_wtime();
+    cout << "Parallel merge sort time: " << end - start << endl;
     return 0;
 }
