@@ -1,83 +1,59 @@
 #include <iostream>
+#include <vector>
 #include <omp.h>
-
+#include <climits>
 using namespace std;
-
-void bubble(int array[], int n)
+void min_reduction(vector<int> &arr)
 {
-    for (int i = 0; i < n - 1; i++)
+    int min_value = INT_MAX;
+#pragma omp parallel for reduction(min : min_value)
+    for (int i = 0; i < arr.size(); i++)
     {
-        for (int j = 0; j < n - i - 1; j++)
+        if (arr[i] < min_value)
         {
-            if (array[j] > array[j + 1])
-                swap(array[j], array[j + 1]);
+            min_value = arr[i];
         }
     }
+    cout << "Minimum value: " << min_value << endl;
 }
-
-void pBubble(int array[], int n)
+void max_reduction(vector<int> &arr)
 {
-    // Sort odd indexed numbers
-    for (int i = 0; i < n; ++i)
+    int max_value = INT_MIN;
+#pragma omp parallel for reduction(max : max_value)
+    for (int i = 0; i < arr.size(); i++)
     {
-#pragma omp for
-        for (int j = 1; j < n; j += 2)
+        if (arr[i] > max_value)
         {
-            if (array[j] < array[j - 1])
-            {
-                swap(array[j], array[j - 1]);
-            }
-        }
-
-// Synchronize
-#pragma omp barrier
-
-// Sort even indexed numbers
-#pragma omp for
-        for (int j = 2; j < n; j += 2)
-        {
-            if (array[j] < array[j - 1])
-            {
-                swap(array[j], array[j - 1]);
-            }
+            max_value = arr[i];
         }
     }
+    cout << "Maximum value: " << max_value << endl;
 }
-
-void printArray(int arr[], int n)
+void sum_reduction(vector<int> &arr)
 {
-    for (int i = 0; i < n; i++)
-        cout << arr[i] << " ";
-    cout << "\n";
+    int sum = 0;
+#pragma omp parallel for reduction(+ : sum)
+    for (int i = 0; i < arr.size(); i++)
+    {
+        sum += arr[i];
+    }
+    cout << "Sum: " << sum << endl;
 }
-
+void average_reduction(vector<int> &arr)
+{
+    int sum = 0;
+#pragma omp parallel for reduction(+ : sum)
+    for (int i = 0; i < arr.size(); i++)
+    {
+        sum += arr[i];
+    }
+    cout << "Average: " << (double)sum / arr.size() << endl;
+}
 int main()
 {
-    // Set up variables
-    int n = 10;
-    int arr[n];
-    int brr[n];
-    double start_time, end_time;
-
-    // Create an array with numbers starting from n to 1
-    for (int i = 0, j = n; i < n; i++, j--)
-        arr[i] = j;
-
-    // Sequential time
-    start_time = omp_get_wtime();
-    bubble(arr, n);
-    end_time = omp_get_wtime();
-    cout << "Sequential Bubble Sort took : " << end_time - start_time << " seconds.\n";
-    printArray(arr, n);
-
-    // Reset the array
-    for (int i = 0, j = n; i < n; i++, j--)
-        arr[i] = j;
-
-    // Parallel time
-    start_time = omp_get_wtime();
-    pBubble(arr, n);
-    end_time = omp_get_wtime();
-    cout << "Parallel Bubble Sort took : " << end_time - start_time << " seconds.\n";
-    printArray(arr, n);
+    vector<int> arr = {5, 2, 9, 1, 7, 6, 8, 3, 4};
+    min_reduction(arr);
+    max_reduction(arr);
+    sum_reduction(arr);
+    average_reduction(arr);
 }

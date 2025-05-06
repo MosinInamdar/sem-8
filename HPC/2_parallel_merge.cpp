@@ -1,83 +1,69 @@
 #include <iostream>
+#include <vector>
 #include <omp.h>
-
 using namespace std;
-
-void bubble(int array[], int n)
+void merge(vector<int> &arr, int l, int m, int r)
 {
-    for (int i = 0; i < n - 1; i++)
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 = r - m;
+    vector<int> L(n1), R(n2);
+    for (i = 0; i < n1; i++)
     {
-        for (int j = 0; j < n - i - 1; j++)
+        L[i] = arr[l + i];
+    }
+    for (j = 0; j < n2; j++)
+    {
+        R[j] = arr[m + 1 + j];
+    }
+    i = 0;
+    j = 0;
+    k = l;
+    while (i < n1 && j < n2)
+    {
+        if (L[i] <= R[j])
         {
-            if (array[j] > array[j + 1])
-                swap(array[j], array[j + 1]);
+            arr[k++] = L[i++];
+        }
+        else
+        {
+            arr[k++] = R[j++];
         }
     }
 }
-
-void pBubble(int array[], int n)
+void merge_sort(vector<int> &arr, int l, int r)
 {
-    // Sort odd indexed numbers
-    for (int i = 0; i < n; ++i)
+    if (l < r)
     {
-#pragma omp for
-        for (int j = 1; j < n; j += 2)
-        {
-            if (array[j] < array[j - 1])
-            {
-                swap(array[j], array[j - 1]);
-            }
-        }
-
-// Synchronize
-#pragma omp barrier
-
-// Sort even indexed numbers
-#pragma omp for
-        for (int j = 2; j < n; j += 2)
-        {
-            if (array[j] < array[j - 1])
-            {
-                swap(array[j], array[j - 1]);
-            }
-        }
+        int m = l + (r - l) / 2;
+#pragma omp task
+        merge_sort(arr, l, m);
+#pragma omp task
+        merge_sort(arr, m + 1, r);
+        merge(arr, l, m, r);
     }
 }
-
-void printArray(int arr[], int n)
+void parallel_merge_sort(vector<int> &arr)
 {
-    for (int i = 0; i < n; i++)
-        cout << arr[i] << " ";
-    cout << "\n";
+#pragma omp parallel
+    {
+#pragma omp single
+        merge_sort(arr, 0, arr.size() - 1);
+    }
 }
-
 int main()
 {
-    // Set up variables
-    int n = 10;
-    int arr[n];
-    int brr[n];
-    double start_time, end_time;
-
-    // Create an array with numbers starting from n to 1
-    for (int i = 0, j = n; i < n; i++, j--)
-        arr[i] = j;
-
-    // Sequential time
-    start_time = omp_get_wtime();
-    bubble(arr, n);
-    end_time = omp_get_wtime();
-    cout << "Sequential Bubble Sort took : " << end_time - start_time << " seconds.\n";
-    printArray(arr, n);
-
-    // Reset the array
-    for (int i = 0, j = n; i < n; i++, j--)
-        arr[i] = j;
-
-    // Parallel time
-    start_time = omp_get_wtime();
-    pBubble(arr, n);
-    end_time = omp_get_wtime();
-    cout << "Parallel Bubble Sort took : " << end_time - start_time << " seconds.\n";
-    printArray(arr, n);
+    vector<int> arr = {5, 2, 9, 1, 7, 6, 8, 3, 4};
+    double start, end;
+    // Measure performance of sequential merge sort
+    start = omp_get_wtime();
+    merge_sort(arr, 0, arr.size() - 1);
+    end = omp_get_wtime();
+    cout << "Sequential merge sort time: " << end - start << endl;
+    // Measure performance of parallel merge sort
+    arr = {5, 2, 9, 1, 7, 6, 8, 3, 4};
+    start = omp_get_wtime();
+    parallel_merge_sort(arr);
+    end = omp_get_wtime();
+    return 0;
 }
