@@ -5,75 +5,116 @@
 
 using namespace std;
 
-// Graph class representing the adjacency list
 class Graph
 {
-    int V;                   // Number of vertices
-    vector<vector<int>> adj; // Adjacency list
+    int V;
+    vector<vector<int>> adj;
 
 public:
     Graph(int V) : V(V), adj(V) {}
 
-    // Add an edge to the graph
     void addEdge(int v, int w)
     {
         adj[v].push_back(w);
     }
 
-    // Parallel Depth-First Search
+    // Parallel DFS with locking
     void parallelDFS(int startVertex)
     {
         vector<bool> visited(V, false);
-        parallelDFSUtil(startVertex, visited);
+        vector<omp_lock_t> locks(V);
+
+        // Initialize locks
+        for (int i = 0; i < V; ++i)
+            omp_init_lock(&locks[i]);
+
+        parallelDFSUtil(startVertex, visited, locks);
+
+        // Destroy locks
+        for (int i = 0; i < V; ++i)
+            omp_destroy_lock(&locks[i]);
     }
 
-    // Parallel DFS utility function
-    void parallelDFSUtil(int v, vector<bool> &visited)
+    void parallelDFSUtil(int v, vector<bool> &visited, vector<omp_lock_t> &locks)
     {
+        omp_set_lock(&locks[v]);
+        if (visited[v])
+        {
+            omp_unset_lock(&locks[v]);
+            return;
+        }
+
         visited[v] = true;
+        omp_unset_lock(&locks[v]);
+
         cout << v << " ";
 
-#pragma omp parallel for
+#pragma omp parallel for shared(visited)
         for (int i = 0; i < adj[v].size(); ++i)
         {
             int n = adj[v][i];
-            if (!visited[n])
-                parallelDFSUtil(n, visited);
+            parallelDFSUtil(n, visited, locks); // safe because visited[n] is locked
         }
     }
 
-    // Parallel Breadth-First Search
+    // Parallel BFS with locking
     void parallelBFS(int startVertex)
     {
         vector<bool> visited(V, false);
         queue<int> q;
+        omp_lock_t queueLock;
+        vector<omp_lock_t> locks(V);
+
+        // Initialize locks
+        for (int i = 0; i < V; ++i)
+            omp_init_lock(&locks[i]);
+        omp_init_lock(&queueLock);
 
         visited[startVertex] = true;
         q.push(startVertex);
 
         while (!q.empty())
         {
+            omp_set_lock(&queueLock);
+            if (q.empty())
+            {
+                omp_unset_lock(&queueLock);
+                break;
+            }
+
             int v = q.front();
             q.pop();
+            omp_unset_lock(&queueLock);
+
             cout << v << " ";
 
-#pragma omp parallel for
+#pragma omp parallel for shared(visited, q)
             for (int i = 0; i < adj[v].size(); ++i)
             {
                 int n = adj[v][i];
+
+                omp_set_lock(&locks[n]);
                 if (!visited[n])
                 {
                     visited[n] = true;
+
+                    omp_set_lock(&queueLock);
                     q.push(n);
+                    omp_unset_lock(&queueLock);
                 }
+                omp_unset_lock(&locks[n]);
             }
         }
+
+        // Destroy locks
+        for (int i = 0; i < V; ++i)
+            omp_destroy_lock(&locks[i]);
+        omp_destroy_lock(&queueLock);
     }
 };
 
 int main()
 {
-    // Create a graph
     Graph g(7);
     g.addEdge(0, 1);
     g.addEdge(0, 2);
@@ -81,19 +122,6 @@ int main()
     g.addEdge(1, 4);
     g.addEdge(2, 5);
     g.addEdge(2, 6);
-
-    /*
-        0 -------->1
-        |         / \
-        |        /   \
-        |       /     \
-        v       v       v
-        2 ----> 3       4
-        |      |
-        |      |
-        v      v
-        5      6
-    */
 
     cout << "Depth-First Search (DFS): ";
     g.parallelDFS(0);
