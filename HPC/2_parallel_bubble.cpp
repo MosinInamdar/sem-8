@@ -14,6 +14,7 @@ void bubble_sort_odd_even(vector<int> &arr)
             if (arr[i] > arr[i + 1])
             {
                 swap(arr[i], arr[i + 1]);
+#pragma omp critical
                 isSorted = false;
             }
         }
@@ -23,6 +24,7 @@ void bubble_sort_odd_even(vector<int> &arr)
             if (arr[i] > arr[i + 1])
             {
                 swap(arr[i], arr[i + 1]);
+#pragma omp critical
                 isSorted = false;
             }
         }
